@@ -1,3 +1,4 @@
+import { getClientBaseUrl } from "../../utils/clientBaseUrl";
 import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, Home } from "lucide-react";
@@ -1985,7 +1986,7 @@ async function createQuoteForApplicationStep(flow, state, A) {
 function quoteApprovalUrl(quoteId) {
   const secret = import.meta.env.VITE_QUOTE_LINK_SECRET || "q3!9fKs7@pLzXr84$nmYtB!cVZdQ3";
   const encrypted = CryptoJS.AES.encrypt(String(quoteId), secret).toString();
-  return `${import.meta.env.VITE_CLIENT_BASE_URL}/quotes/saved-preview/${encodeURIComponent(encrypted)}`;
+  return `${getClientBaseUrl()}/quotes/saved-preview/${encodeURIComponent(encrypted)}`;
 }
 function openQuoteForApproval(state, tab) {
   if (!state.quoteId) {
@@ -2489,12 +2490,10 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
   const [submitting, setSubmitting] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [error, setError] = useState("");
-  // True when sign-up hit "account already exists" — e.g. the email is already
-  // registered under a different mobile number. Surfaces a Sign In link instead
-  // of just leaving them stuck on a dead-end error.
-  const [accountExists, setAccountExists] = useState(false);
   const [otpValues, setOtpValues] = useState(["", "", "", ""]);
   const [timer, setTimer] = useState(30);
+  // "Already have an account? Sign in" swaps this form for the site Sign In.
+  const [showSignIn, setShowSignIn] = useState(false);
 
   useEffect(() => {
     getAllStates().then(setStates).catch(() => setStates([]));
@@ -2546,7 +2545,6 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
     if (!form.state) return setError("Please select your state.");
     if (!form.language) return setError("Please select your preferred language.");
     setError("");
-    setAccountExists(false);
     setSubmitting(true);
     try {
       // Try signing in first (in case they already have an account from an
@@ -2559,7 +2557,7 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
         if (/not found/i.test(err?.message || "")) {
           mode = "signup";
           // Referral scan token (if any) rides along so the server can attribute the signup.
-          await signupWithPhone(form.name.trim(), form.email.trim(), form.mobile.trim(), getReferralToken(), form.state);
+          await signupWithPhone(form.name.trim(), form.email.trim(), form.mobile.trim(), getReferralToken(), form.state, form.language);
         } else {
           throw err;
         }
@@ -2571,22 +2569,17 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
     } catch (err) {
       const msg = err?.message || "Couldn't send a verification code. Please check your details and try again.";
       setError(msg);
-      // Signup hit the backend's "Mobile OR Email already registered" guard —
-      // most likely this email is already on file under a different mobile
-      // number. Offer a way to switch to signing in instead of a dead end.
-      setAccountExists(/already exists/i.test(msg));
     } finally {
       setSubmitting(false);
     }
   }
 
-  // Lets them retry as a sign-in: clears the mobile field (their existing
-  // account may be under a different number than the one just tried) and
-  // keeps name/email filled in.
-  function switchToSignIn() {
-    setError("");
-    setAccountExists(false);
-    set("mobile", "");
+  // Signed in through the site Sign In — re-run the gate, which now finds the
+  // token and raises the Lead from the signed-in account before continuing.
+  function finishSignIn() {
+    const run = state.leadGate?.run;
+    state.leadGate = null;
+    requireVerifiedCustomer(state, bump, () => run && run());
   }
 
   // Raises the Lead the same way the form used to (for sales/CRM tracking),
@@ -2651,6 +2644,17 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
     }
   }
 
+  if (showSignIn) {
+    return (
+      <SigninModal
+        initialValue={form.mobile}
+        onSuccess={finishSignIn}
+        onClose={closeModal}
+        onSignup={() => setShowSignIn(false)}
+      />
+    );
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-md p-6">
@@ -2669,7 +2673,7 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-1">Verify it's you</h3>
             <p className="text-xs text-gray-500 mb-4">
-              {accountMode === "login" ? "Welcome back — " : ""}We've emailed a 4-digit code to <b>{form.email}</b>.
+              {accountMode === "login" ? "Welcome back — " : ""}We've sent a 4-digit code to <b>{form.email}</b> and <b>+91 {form.mobile}</b>.
             </p>
             <div className="flex gap-3 justify-center mb-3">
               {[0, 1, 2, 3].map((i) => (
@@ -2752,14 +2756,15 @@ export function LeadCaptureModal({ state, bump, title, subtitle }) {
               </div>
             </div>
             <ErrorText msg={error} />
-            {accountExists && (
-              <button type="button" onClick={switchToSignIn} className="mt-1 text-xs text-blue-600 font-semibold hover:underline">
-                Already have an account? Sign in instead
-              </button>
-            )}
             <button type="submit" disabled={submitting} className="mt-4 w-full px-4 py-2.5 rounded-lg bg-blue-600 text-white text-sm font-semibold disabled:opacity-60">
               {submitting ? "Signing up…" : "Sign Up"}
             </button>
+            <p className="mt-3 text-xs text-gray-500 text-center">
+              Already have an account?{" "}
+              <button type="button" onClick={() => setShowSignIn(true)} className="text-blue-600 font-semibold hover:underline">
+                Sign in
+              </button>
+            </p>
           </form>
         )}
       </div>

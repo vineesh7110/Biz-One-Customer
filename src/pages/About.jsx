@@ -5,21 +5,7 @@ import {
   ArrowRight, Zap, Lock, Crosshair, Handshake, BarChart3, Lightbulb,
   Target, Users, MapPin, Trophy, FileCheck2, Settings,
 } from "lucide-react";
-
-// Figures below are a snapshot of the live database (bizpoleproductiondb) taken
-// on 19 Oct 2026, floored to a round number. Re-run the counts before updating.
-const STATS = {
-  businesses: 10700,       // Company rows (10,726)
-  clientCompanies: 5500,   // distinct CompanyID with an order (5,532)
-  servicesOrdered: 15000,  // active service lines on orders (15,036)
-  servicesCompleted: 3000, // serviceassignment Status = Completed (3,045)
-  completedLastMonth: 1100,// services completed in Sep 2026 (1,184)
-  states: 28,              // distinct states/UTs of client companies
-  districts: 250,          // distinct districts of client companies (254)
-  servicesOffered: 120,    // active ServiceMaster rows (122)
-  team: 200,               // active employees (205)
-  officeCities: 11,        // cities with an active Bizpole franchisee office
-};
+import { STATS } from "../data/siteStats";
 
 // Awards & Accolades (confirmed by the business, 19 Oct 2026). The section renders
 // only when this list has entries: { title, issuer, year, icon } (a lucide icon).
@@ -199,7 +185,7 @@ export default function AboutPage() {
         .bo-sub { font-size: 15px; color: var(--bo-muted); line-height: 1.7; }
 
         /* ── Hero ───────────────────────────── */
-        .bo-hero { position: relative; min-height: clamp(720px, 100vh, 940px); display: flex; align-items: center; padding: 120px 0 60px; }
+        .bo-hero { position: relative; min-height: clamp(690px, 94vh, 890px); display: flex; align-items: center; padding: 120px 0 55px; }
         .bo-hero-blob { position: absolute; top: 0; right: 0; bottom: 0; width: 44%; pointer-events: none; }
         .bo-hero-blob svg { width: 100%; height: 100%; display: block; }
         .bo-hero-img {
@@ -410,11 +396,11 @@ export default function AboutPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.25, duration: 0.7, ease }}
               >
-                <button className="bo-consult" onClick={() => navigate("/contact")}>
+                <button className="bo-consult" onClick={() => navigate("/startbusiness")}>
                   <span className="bo-consult-ring">
                     <span className="bo-consult-dot"><ArrowRight size={20} color="#fff" strokeWidth={2} /></span>
                   </span>
-                  Get Free Consultation
+                  Get Your Business Started
                 </button>
                 <button className="bo-explore" onClick={() => navigate("/products")}>
                   Explore Platform
